@@ -1,0 +1,234 @@
+//@version = 4
+//                                                                              STUDY/STRATEGY SETTINGS
+//░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░
+study( title="Fullscope Index" , shorttitle="Fullscope" , overlay=false , format=format.price , precision=1 )
+//                                                                              COLORSPACE
+//░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░
+invisible		        = #00000000
+
+//                                                                              INPUTS
+//░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░
+//                                                              TYPE
+//▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒
+STRATEGY                = input( defval="RMI"       , options=["RMI", "RSI" , "CCI"]                                                    , title="Strategy Type"         )
+
+//                                                              SCOPE
+//▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒
+SCOPE_GRADATION         = input( defval="Linear"    , options=["Linear", "Logarithmic"]                                         , title="Scalar Gradation"      )
+SCOPE_RATIO			    = input( defval=1.2         , minval=1.000              , step=0.005            , type=input.float      , title="Scalar Ratio"          )	//0.002( finetune )or0.01( quicktune )willworkalso
+SCOPE_MAX               = input( defval=5400.0      , minval=128.0              , step=100.0            , type=input.float      , title="Scalar Maximum"        ) * SCOPE_RATIO // +1 Scale up to avoid power to zero in plot 5400 * SCOPE_RATIO // 
+SCOPE_MAX               := iff( STRATEGY == "CCI" and SCOPE_MAX > 4999 , 4999 , SCOPE_MAX )
+SCOPE_MIN               = iff( SCOPE_GRADATION == "Linear" , SCOPE_MAX / 32 , SCOPE_MAX / pow( SCOPE_RATIO , 32 ) )
+
+P_div			        = input( defval=9.0         , minval=1.0                , step=0.5              , type=input.float      , title="Value Scaling"     )// This Likely needs to be calculated per period to perform equally between various assets and phases
+
+//                                                              VALUATION
+//▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒
+
+
+//                                                                              FUNCTIONS
+//░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░
+//                                                              AVERAGING
+//▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒
+//                      ROLLING MOVING AVERAGE
+//░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░
+RMA( SERIES , LENGHT )=>
+	ALPHA               = 1 / LENGHT
+    float SUM           = na
+    SUM                 := ALPHA * SERIES + ( 1.0 - ALPHA ) * nz( SUM[1] )
+    
+//                                                              INDEXING
+//▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒
+//                      RELATIVE MOMENTUM INDEX
+//░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░
+RMI( SOURCE , LENGHT , MOMENTUM )=> // USES LINEAR VALUES , MAKE WITH LOG VALUES LIKE CHART SCALING
+    INC                 = RMA( max( SOURCE              - SOURCE[MOMENTUM]   , 0 )    , LENGHT)
+    DEC                 = RMA( max( SOURCE[MOMENTUM]    - SOURCE             , 0 )    , LENGHT)
+    RMI                 = DEC   == 0.0  ? 0.0     : -(INC-DEC)/(INC+DEC)
+    
+//                      RELATIVE STRENGHT INDEX
+//░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░
+RSI( SOURCE , LENGHT )=> // USES LINEAR VALUES , MAKE WITH LOG VALUES LIKE CHART SCALING
+    INC                 = RMA( max( SOURCE              - SOURCE[1]   , 0 )    , LENGHT)
+    DEC                 = RMA( max( SOURCE[1]    - SOURCE             , 0 )    , LENGHT)
+    RSI                 = DEC   == 0.0  ? 0.0     : -(INC-DEC)/(INC+DEC)
+	
+//                      Commodity Channel Index
+//░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░
+CCI( SOURCE , LENGHT )=> 															
+	CCI                  = -(( ( cci( SOURCE , int(LENGHT) ) ) / 500 ))
+
+//                                                              GRAPHICAL
+//▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒
+//                      SCALAR Y VALUE
+//░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░
+SCALAR( ITERATION )=>
+    iff( SCOPE_GRADATION == "Linear" , ( SCOPE_MAX - (( SCOPE_MAX / 32 ) * ITERATION)) / SCOPE_RATIO , SCOPE_MAX / pow( SCOPE_RATIO , ITERATION ) )
+
+//                      PIXELING
+//░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░
+PIXEL( SOURCE , ITERATION )=> 
+	LENGHT = SCALAR( ITERATION )
+	return = STRATEGY == "RMI" ? RMI( SOURCE , LENGHT , int( LENGHT / P_div ) ) :
+	         STRATEGY == "RSI" ? RSI( SOURCE , LENGHT ) :
+	         STRATEGY == "CCI" ? CCI( SOURCE , LENGHT ) : 0.0
+
+//                      SHADING
+//░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░
+SHADE(x)=>
+    out = x >  0.96875 ? #ffa9e0FF :
+          x >  0.9375  ? #ffa6dcF0 :
+          x >  0.90625 ? #fe9ed8E8 :
+          x >  0.875   ? #fc97d1E0 :
+          x >  0.84375 ? #fa90caD8 :
+          x >  0.8125  ? #fa8bc3D0 :
+          x >  0.78125 ? #f37db0C8 :
+          x >  0.75    ? #ee74a3C0 :
+          x >  0.71875 ? #e96d98B8 :
+          x >  0.6875  ? #e46890B0 :
+          x >  0.65625 ? #db6083A8 :
+          x >  0.625   ? #d65a7aA0 :
+          x >  0.59375 ? #cb506c98 :
+          x >  0.5625  ? #c44a6390 :
+          x >  0.53125 ? #ba465b88 :
+          x >  0.5     ? #b6475a80 :
+          x >  0.46875 ? #b14a5d78 :
+          x >  0.4375  ? #ae4d5e70 :
+          x >  0.40625 ? #aa506168 :
+          x >  0.375   ? #a7536360 :
+          x >  0.34375 ? #a3576658 :
+          x >  0.3125  ? #9f5a6750 :
+          x >  0.28125 ? #9b5e6a48 :
+          x >  0.25    ? #97616c40 :
+          x >  0.21875 ? #94646d38 :
+          x >  0.1875  ? #8f677030 :
+          x >  0.15625 ? #8c6a7128 :
+          x >  0.125   ? #896d7220 :
+          x >  0.09375 ? #86707518 :
+          x >  0.0625  ? #84737610 :
+          x >  0.03125 ? #80767908 :
+          x < -0.96875 ? #b9fdceFF :
+          x < -0.9375  ? #affcc9F0 :
+          x < -0.90625 ? #a6fac5E8 :
+          x < -0.875   ? #9cf7c1E0 :
+          x < -0.84375 ? #90f3baD8 :
+          x < -0.8125  ? #87f0b6D0 :
+          x < -0.78125 ? #7aeab1C8 :
+          x < -0.75    ? #71e5adC0 :
+          x < -0.71875 ? #67e0abB8 :
+          x < -0.6875  ? #5dd9a4B0 :
+          x < -0.65625 ? #55d29fA8 :
+          x < -0.625   ? #50cc9dA0 :
+          x < -0.59375 ? #4ac59a98 :
+          x < -0.5625  ? #46be9790 :
+          x < -0.53125 ? #44b79588 :
+          x < -0.5     ? #48b39480 :
+          x < -0.46875 ? #4baf9278 :
+          x < -0.4375  ? #4fab9070 :
+          x < -0.40625 ? #52a88f68 :
+          x < -0.375   ? #55a48e60 :
+          x < -0.34375 ? #599f8c58 :
+          x < -0.3125  ? #5d9c8b50 :
+          x < -0.28125 ? #60988948 :
+          x < -0.25    ? #63938740 :
+          x < -0.21875 ? #678f8438 :
+          x < -0.1875  ? #67908530 :
+          x < -0.15625 ? #6e888128 :
+          x < -0.125   ? #6e888120 :
+          x < -0.09375 ? #74827f18 :
+          x < -0.0625  ? #75817d10 :
+          x < -0.03125 ? #7b7b7b08 : invisible
+          
+//                                                                              VISUALIZATION
+//░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░
+//                                                              VALUATION
+//▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒
+// f_valuation( Series )=>
+//     rawvalue = 0.0
+//     for i=1 to 32
+//         a = PIXEL( close , i )
+//         b = 33-i
+//         rawvalue := rawvalue + ( a * b * b )
+//     rawvalue
+//     // NEEDS TO VALUATE FROM NEUTRAL TO UP, NOT ALL
+    
+// plot(f_valuation(close))
+
+//                                                              FULLSCOPE
+//▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒
+//                      LINES
+//░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░
+P32 = plot( SCALAR( 1 ) , color = invisible )
+P31 = plot( SCALAR( 2 ) , color = invisible )
+P30 = plot( SCALAR( 3 ) , color = invisible )
+P29 = plot( SCALAR( 4 ) , color = invisible )
+P28 = plot( SCALAR( 5 ) , color = invisible )
+P27 = plot( SCALAR( 6 ) , color = invisible )
+P26 = plot( SCALAR( 7 ) , color = invisible )
+P25 = plot( SCALAR( 8 ) , color = invisible )
+P24 = plot( SCALAR( 9 ) , color = invisible )
+P23 = plot( SCALAR( 10 ) , color = invisible )
+P22 = plot( SCALAR( 11 ) , color = invisible )
+P21 = plot( SCALAR( 12 ) , color = invisible )
+P20 = plot( SCALAR( 13 ) , color = invisible )
+P19 = plot( SCALAR( 14 ) , color = invisible )
+P18 = plot( SCALAR( 15 ) , color = invisible )
+P17 = plot( SCALAR( 16 ) , color = invisible )
+P16 = plot( SCALAR( 17 ) , color = invisible )
+P15 = plot( SCALAR( 18 ) , color = invisible )
+P14 = plot( SCALAR( 19 ) , color = invisible )
+P13 = plot( SCALAR( 20 ) , color = invisible )
+P12 = plot( SCALAR( 21 ) , color = invisible )
+P11 = plot( SCALAR( 22 ) , color = invisible )
+P10 = plot( SCALAR( 23 ) , color = invisible )
+P09 = plot( SCALAR( 24 ) , color = invisible )
+P08 = plot( SCALAR( 25 ) , color = invisible )
+P07 = plot( SCALAR( 26 ) , color = invisible )
+P06 = plot( SCALAR( 27 ) , color = invisible )
+P05 = plot( SCALAR( 28 ) , color = invisible )
+P04 = plot( SCALAR( 29 ) , color = invisible )
+P03 = plot( SCALAR( 30 ) , color = invisible )
+P02 = plot( SCALAR( 31 ) , color = invisible )
+P01 = plot( SCALAR( 32 ) , color = invisible )
+
+//                      FILLS
+//░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░
+fill( P32 , P31 , color = SHADE( PIXEL( close , 1 ) ) )
+fill( P31 , P30 , color = SHADE( PIXEL( close , 2 ) ) )
+fill( P30 , P29 , color = SHADE( PIXEL( close , 3 ) ) )
+fill( P29 , P28 , color = SHADE( PIXEL( close , 4 ) ) )
+fill( P28 , P27 , color = SHADE( PIXEL( close , 5 ) ) )
+fill( P27 , P26 , color = SHADE( PIXEL( close , 6 ) ) )
+fill( P26 , P25 , color = SHADE( PIXEL( close , 7 ) ) )
+fill( P25 , P24 , color = SHADE( PIXEL( close , 8 ) ) )
+fill( P24 , P23 , color = SHADE( PIXEL( close , 9 ) ) )
+fill( P23 , P22 , color = SHADE( PIXEL( close , 10 ) ) )
+fill( P22 , P21 , color = SHADE( PIXEL( close , 11 ) ) )
+fill( P21 , P20 , color = SHADE( PIXEL( close , 12 ) ) )
+fill( P20 , P19 , color = SHADE( PIXEL( close , 13 ) ) )
+fill( P19 , P18 , color = SHADE( PIXEL( close , 14 ) ) )
+fill( P18 , P17 , color = SHADE( PIXEL( close , 15 ) ) )
+fill( P17 , P16 , color = SHADE( PIXEL( close , 16 ) ) )
+fill( P16 , P15 , color = SHADE( PIXEL( close , 17 ) ) )
+fill( P15 , P14 , color = SHADE( PIXEL( close , 18 ) ) )
+fill( P14 , P13 , color = SHADE( PIXEL( close , 19 ) ) )
+fill( P13 , P12 , color = SHADE( PIXEL( close , 20 ) ) )
+fill( P12 , P11 , color = SHADE( PIXEL( close , 21 ) ) )
+fill( P11 , P10 , color = SHADE( PIXEL( close , 22 ) ) )
+fill( P10 , P09 , color = SHADE( PIXEL( close , 23 ) ) )
+fill( P09 , P08 , color = SHADE( PIXEL( close , 24 ) ) )
+fill( P08 , P07 , color = SHADE( PIXEL( close , 25 ) ) )
+fill( P07 , P06 , color = SHADE( PIXEL( close , 26 ) ) )
+fill( P06 , P05 , color = SHADE( PIXEL( close , 27 ) ) )
+fill( P05 , P04 , color = SHADE( PIXEL( close , 28 ) ) )
+fill( P04 , P03 , color = SHADE( PIXEL( close , 29 ) ) )
+fill( P03 , P02 , color = SHADE( PIXEL( close , 30 ) ) )
+fill( P02 , P01 , color = SHADE( PIXEL( close , 31 ) ) )
+
+//                      LABELS
+//░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░
+// minimum = label.new( bar_index, SCOPE_MIN, 'Minimum '+tostring(SCALAR( 32 )), color=#88888822, textcolor=color.gray ,style=label.style_labelup , yloc=yloc.price )
+// label.delete(minimum[1])
+// maximum = label.new( bar_index, SCOPE_MAX/SCOPE_RATIO , 'Maximum '+tostring(SCOPE_MAX/SCOPE_RATIO ), color=#88888822, textcolor=color.gray ,style=label.style_labeldown , yloc=yloc.price )
+// label.delete(maximum[1])
+
