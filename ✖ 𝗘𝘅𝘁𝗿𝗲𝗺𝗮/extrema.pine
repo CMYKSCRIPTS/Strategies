@@ -1,0 +1,249 @@
+//@version=4
+// FORMAT IN TWO COLUMBS LEFT LONGS RIGHT SHORTS
+strategy(title="✖ 𝗘𝘅𝘁𝗿𝗲𝗺𝗮", overlay=true,linktoseries=true, scale=scale.right, pyramiding=73, commission_value=0.15,initial_capital=10000)
+TRANSP  = #ffffff00
+GRE0 = #289e8116,    GRE1 = #289e8132,    GRE2 = #289e8148,   GRE3 = #289e8154,   GRE4 = #289e8170,   GRE5 = #289e8186,   GRE6 = #289e81a2,   GRE7 = #289e81b8,   GRE8 = #289e81d4,   GRE9 = #289e81ff
+RED0 = #c3012116,    RED1 = #c3012132,    RED2 = #c3012148,   RED3 = #c3012154,   RED4 = #c3012170,   RED5 = #c3012186,   RED6 = #c30121a2,   RED7 = #c30121b8,   RED8 = #c30121d4,   RED9 = #c30121ff
+//****************************** INPUTS *****************************
+//TIME_SESSION            = input("0",type=input.session, title = "Sessions")
+TIME_DATE_START         = input(defval = timestamp("21 May 2021 12:00 +0000"), title = "Start Time", type = input.time)
+TIME_DATE_END           = input(defval = timestamp("16 Aug 2021 00:00 +0000"), title = "End Time", type = input.time)
+    
+TIME_ALLOW = time >= TIME_DATE_START and time <= TIME_DATE_END //and time(timeframe.period, TIME_SESSION)
+
+BASE    = input(defval=2, step=.1, minval=1, maxval=3, title="B Base Number")
+FACTOR  = input(defval=1, step=.1, minval=0, maxval=7, title="F Factor Multiplier")
+CROP    = input(defval=3, step=1., minval=0, maxval=13, title="C Crop Low")
+
+X0 = round(pow(BASE, FACTOR * (0 + CROP)))
+X1 = round(pow(BASE, FACTOR * (1 + CROP)))
+X2 = round(pow(BASE, FACTOR * (2 + CROP)))
+X3 = round(pow(BASE, FACTOR * (3 + CROP)))
+X4 = round(pow(BASE, FACTOR * (4 + CROP)))
+X5 = round(pow(BASE, FACTOR * (5 + CROP)))
+X6 = round(pow(BASE, FACTOR * (6 + CROP)))
+X7 = round(pow(BASE, FACTOR * (7 + CROP)))
+X8 = round(pow(BASE, FACTOR * (8 + CROP)))
+X9 = round(pow(BASE, FACTOR * (9 + CROP)))
+
+
+//****************************** ARRAYS  lowest/highest LOW/HIGH low/high
+LOW0 = lowest(low, X0)
+LOW1 = lowest(low, X1)
+LOW2 = lowest(low, X2)
+LOW3 = lowest(low, X3)
+LOW4 = lowest(low, X4)
+LOW5 = lowest(low, X5)
+LOW6 = lowest(low, X6)
+LOW7 = lowest(low, X7)
+LOW8 = lowest(low, X8)
+LOW9 = lowest(low, X9)
+LOWX = LOW9
+LOWX := LOWX[1] < LOWX ? LOWX[1] : LOWX
+
+LOWER01 = LOW0 > LOW1 ? 1 : 0
+LOWER12 = LOW1 > LOW2 ? 1 : 0
+LOWER23 = LOW2 > LOW3 ? 1 : 0
+LOWER34 = LOW3 > LOW4 ? 1 : 0
+LOWER45 = LOW4 > LOW5 ? 1 : 0
+LOWER56 = LOW5 > LOW6 ? 1 : 0
+LOWER67 = LOW6 > LOW7 ? 1 : 0
+LOWER78 = LOW7 > LOW8 ? 1 : 0
+LOWER89 = LOW8 > LOW9 ? 1 : 0
+
+FALLLOW0 = LOW1 < LOW1[1] ? 1 : 0
+FALLLOW1 = LOW1 < LOW1[1] ? 1 : 0
+FALLLOW2 = LOW2 < LOW2[1] ? 1 : 0
+FALLLOW3 = LOW3 < LOW3[1] ? 1 : 0
+FALLLOW4 = LOW4 < LOW4[1] ? 1 : 0
+FALLLOW5 = LOW5 < LOW5[1] ? 1 : 0
+FALLLOW6 = LOW6 < LOW6[1] ? 1 : 0
+FALLLOW7 = LOW7 < LOW7[1] ? 1 : 0
+FALLLOW8 = LOW8 < LOW8[1] ? 1 : 0
+FALLLOW9 = LOW9 < LOW9[1] ? 1 : 0
+
+FALLSIZE = FALLLOW9 ? X9 : 
+   FALLLOW8 ? X8 : FALLLOW7 ? X7 : FALLLOW6 ? X6 : FALLLOW5 ? X5 : FALLLOW4 ? X4 : 
+   FALLLOW3 ? X3 : FALLLOW2 ? X2 : FALLLOW1 ? X1 : FALLLOW0 ? X0 : 0
+FALLFILL = FALLLOW9 ? GRE9 : FALLLOW8 ? GRE8 : 
+   FALLLOW7 ? GRE7 : FALLLOW6 ? GRE6 : FALLLOW5 ? GRE5 : FALLLOW4 ? GRE4 : 
+   FALLLOW3 ? GRE3 : FALLLOW2 ? GRE2 : FALLLOW1 ? GRE1 : FALLLOW0 ? GRE0 : TRANSP
+FALLFILL0 = FALLLOW0 ? GRE0 : TRANSP
+FALLFILL1 = FALLLOW1 ? GRE1 : TRANSP
+FALLFILL2 = FALLLOW2 ? GRE2 : TRANSP
+FALLFILL3 = FALLLOW3 ? GRE3 : TRANSP
+FALLFILL4 = FALLLOW4 ? GRE4 : TRANSP
+FALLFILL5 = FALLLOW5 ? GRE5 : TRANSP
+FALLFILL6 = FALLLOW6 ? GRE6 : TRANSP
+FALLFILL7 = FALLLOW7 ? GRE7 : TRANSP
+FALLFILL8 = FALLLOW8 ? GRE8 : TRANSP
+FALLFILL9 = FALLLOW9 ? GRE9 : TRANSP
+
+FALLLOW = FALLLOW0 or FALLLOW1 or FALLLOW2 or FALLLOW3 or FALLLOW4 or FALLLOW5 or FALLLOW6 or 
+   FALLLOW7 or FALLLOW8 or FALLLOW9 ? true : false
+KICKLOW = FALLLOW[1] ? FALLLOW ? false : true : false
+
+//****************************** ARRAYS  lowest/highest LOW/HIGH low/high
+HIGH0 = highest(high, X0)
+HIGH1 = highest(high, X1)
+HIGH2 = highest(high, X2)
+HIGH3 = highest(high, X3)
+HIGH4 = highest(high, X4)
+HIGH5 = highest(high, X5)
+HIGH6 = highest(high, X6)
+HIGH7 = highest(high, X7)
+HIGH8 = highest(high, X8)
+HIGH9 = highest(high, X9)
+HIGHX = HIGH9
+HIGHX := HIGHX[1] > HIGHX ? HIGHX[1] : HIGHX
+
+HIGHER01 = HIGH0 < HIGH1 ? 1 : 0
+HIGHER12 = HIGH1 < HIGH2 ? 1 : 0
+HIGHER23 = HIGH2 < HIGH3 ? 1 : 0
+HIGHER34 = HIGH3 < HIGH4 ? 1 : 0
+HIGHER45 = HIGH4 < HIGH5 ? 1 : 0
+HIGHER56 = HIGH5 < HIGH6 ? 1 : 0
+HIGHER67 = HIGH6 < HIGH7 ? 1 : 0
+HIGHER78 = HIGH7 < HIGH8 ? 1 : 0
+HIGHER89 = HIGH8 < HIGH9 ? 1 : 0
+
+RISEHIGH0 = HIGH1 > HIGH1[1] ? 1 : 0
+RISEHIGH1 = HIGH1 > HIGH1[1] ? 1 : 0
+RISEHIGH2 = HIGH2 > HIGH2[1] ? 1 : 0
+RISEHIGH3 = HIGH3 > HIGH3[1] ? 1 : 0
+RISEHIGH4 = HIGH4 > HIGH4[1] ? 1 : 0
+RISEHIGH5 = HIGH5 > HIGH5[1] ? 1 : 0
+RISEHIGH6 = HIGH6 > HIGH6[1] ? 1 : 0
+RISEHIGH7 = HIGH7 > HIGH7[1] ? 1 : 0
+RISEHIGH8 = HIGH8 > HIGH8[1] ? 1 : 0
+RISEHIGH9 = HIGH9 > HIGH9[1] ? 1 : 0
+
+RISESIZE = RISEHIGH9 ? X9 : RISEHIGH8 ? X8 : 
+   RISEHIGH7 ? X7 : RISEHIGH6 ? X6 : RISEHIGH5 ? X5 : RISEHIGH4 ? X4 : 
+   RISEHIGH3 ? X3 : RISEHIGH2 ? X2 : RISEHIGH1 ? X1 : RISEHIGH0 ? X0 : 0
+RISEFILL = RISEHIGH9 ? RED9 : RISEHIGH8 ? RED8 : RISEHIGH7 ? RED7 : 
+   RISEHIGH6 ? RED6 : RISEHIGH5 ? RED5 : RISEHIGH4 ? RED4 : RISEHIGH3 ? RED3 : 
+   RISEHIGH2 ? RED2 : RISEHIGH1 ? RED1 : RISEHIGH0 ? RED0 : TRANSP
+RISEFILL0 = RISEHIGH0 ? RED0 : TRANSP
+RISEFILL1 = RISEHIGH1 ? RED1 : TRANSP
+RISEFILL2 = RISEHIGH2 ? RED2 : TRANSP
+RISEFILL3 = RISEHIGH3 ? RED3 : TRANSP
+RISEFILL4 = RISEHIGH4 ? RED4 : TRANSP
+RISEFILL5 = RISEHIGH5 ? RED5 : TRANSP
+RISEFILL6 = RISEHIGH6 ? RED6 : TRANSP
+RISEFILL7 = RISEHIGH7 ? RED7 : TRANSP
+RISEFILL8 = RISEHIGH8 ? RED8 : TRANSP
+RISEFILL9 = RISEHIGH9 ? RED9 : TRANSP
+
+RISEHIGH = RISEHIGH0 or RISEHIGH1 or RISEHIGH2 or RISEHIGH3 or RISEHIGH4 or RISEHIGH5 or 
+   RISEHIGH6 or RISEHIGH7 or RISEHIGH8 or RISEHIGH9 ? true : false
+KICKHIGH = RISEHIGH[1] ? RISEHIGH ? false : true : false
+
+
+//****************************** AMOUNT OPEN *****************************
+LONGQ = 0
+LONGQ := KICKLOW ? FALLSIZE[1] : 0
+
+LONGX = LONGQ[1] > 0 ? LONGQ[1] + LONGQ : LONGQ
+LONGQ := LONGQ == 0 ? LONGQ[1] : LONGX
+
+LONGQF = 0.0
+LONGQF := KICKLOW ? FALLSIZE[1]/open : 0 //not close[1] due to 1 tick offset
+
+LONGXF = LONGQF[1] > 0 ? LONGQF[1] + LONGQF : LONGQF
+LONGQF := LONGQF == 0 ? LONGQF[1] : LONGXF
+
+//plot(LONGQ, color=#00FF0000)
+
+SHORTQ = 0
+SHORTQ := KICKHIGH ? RISESIZE[1] : 0
+
+SHORTX = SHORTQ[1] > 0 ? SHORTQ[1] + SHORTQ : SHORTQ
+SHORTQ := SHORTQ == 0 ? SHORTQ[1] : SHORTX
+
+SHORTQF = 0.0
+SHORTQF := KICKHIGH ? RISESIZE[1]/open : 0 //not close[1] due to 1 tick offset
+
+SHORTXF = SHORTQF[1] > 0 ? SHORTQF[1] + SHORTQF : SHORTQF
+SHORTQF := SHORTQF == 0 ? SHORTQF[1] : SHORTXF
+
+//plot(SHORTQ, color=#FF000000)
+
+
+
+OPENQ = LONGQ - SHORTQ
+OPENQF = LONGQF - SHORTQF
+
+bool SIDE = na
+SIDE := fixnan(OPENQ > 0 ? 1 : 0)
+SIDE_SWITCH = SIDE[2] != SIDE
+bgcolor(SIDE_SWITCH?#000000FF:#00000000)
+OPENCOLOR = SHORTQ > LONGQ ? RED9 : GRE9
+plot(OPENQ, color=OPENCOLOR, display=display.none, title="OPEN Q")
+plot(OPENQF, color=OPENCOLOR, display=display.none, title="OPEN QF")
+plot(OPENQ/OPENQF,color=color.purple)
+
+//****************************** PLOT *****************************
+PLOW = plot(low, color=GRE9, display=display.none)
+
+PLOW0 = plot(LOW0, color=GRE0, linewidth=1, title="Lowest in B^(F*0+C) period")
+PLOW1 = plot(LOW1, color=GRE1, linewidth=1, title="Lowest in B^(F*1+C) period")
+PLOW2 = plot(LOW2, color=GRE2, linewidth=1, title="Lowest in B^(F*2+C) period")
+PLOW3 = plot(LOW3, color=GRE3, linewidth=1, title="Lowest in B^(F*3+C) period")
+PLOW4 = plot(LOW4, color=GRE4, linewidth=1, title="Lowest in B^(F*4+C) period")
+PLOW5 = plot(LOW5, color=GRE5, linewidth=1, title="Lowest in B^(F*5+C) period")
+PLOW6 = plot(LOW6, color=GRE6, linewidth=1, title="Lowest in B^(F*6+C) period")
+PLOW7 = plot(LOW7, color=GRE7, linewidth=1, title="Lowest in B^(F*7+C) period")
+PLOW8 = plot(LOW8, color=GRE8, linewidth=1, title="Lowest in B^(F*8+C) period")
+PLOW9 = plot(LOW9, color=GRE9, linewidth=1, title="Lowest in B^(F*9+C) period")
+PLOWX = plot(LOWX, color=GRE9, linewidth=1, title="Lowest in All periods")
+
+
+fill(PLOW, PLOW0, color=FALLFILL)
+fill(PLOW0, PLOW1, color=FALLFILL0)
+fill(PLOW1, PLOW2, color=FALLFILL1)
+fill(PLOW2, PLOW3, color=FALLFILL2)
+fill(PLOW3, PLOW4, color=FALLFILL3)
+fill(PLOW4, PLOW5, color=FALLFILL4)
+fill(PLOW5, PLOW6, color=FALLFILL5)
+fill(PLOW6, PLOW7, color=FALLFILL6)
+fill(PLOW7, PLOW8, color=FALLFILL7)
+fill(PLOW8, PLOW9, color=FALLFILL8)
+fill(PLOW9, PLOWX, color=FALLFILL9)
+
+
+PHIGH = plot(high, color=RED9, display=display.none)
+
+PHIGH0 = plot(HIGH0, color=RED0, linewidth=1, title="Highest in B^(F*0+C) period")
+PHIGH1 = plot(HIGH1, color=RED1, linewidth=1, title="Highest in B^(F*1+C) period")
+PHIGH2 = plot(HIGH2, color=RED2, linewidth=1, title="Highest in B^(F*2+C) period")
+PHIGH3 = plot(HIGH3, color=RED3, linewidth=1, title="Highest in B^(F*3+C) period")
+PHIGH4 = plot(HIGH4, color=RED4, linewidth=1, title="Highest in B^(F*4+C) period")
+PHIGH5 = plot(HIGH5, color=RED5, linewidth=1, title="Highest in B^(F*5+C) period")
+PHIGH6 = plot(HIGH6, color=RED6, linewidth=1, title="Highest in B^(F*6+C) period")
+PHIGH7 = plot(HIGH7, color=RED7, linewidth=1, title="Highest in B^(F*7+C) period")
+PHIGH8 = plot(HIGH8, color=RED8, linewidth=1, title="Highest in B^(F*8+C) period")
+PHIGH9 = plot(HIGH9, color=RED9, linewidth=1, title="Highest in B^(F*9+C) period")
+PHIGHX = plot(HIGHX, color=RED9, linewidth=1, title="Highest in All periods")
+
+
+fill(PHIGH, PHIGH0, color=RISEFILL)
+fill(PHIGH0, PHIGH1, color=RISEFILL0)
+fill(PHIGH1, PHIGH2, color=RISEFILL1)
+fill(PHIGH2, PHIGH3, color=RISEFILL2)
+fill(PHIGH3, PHIGH4, color=RISEFILL3)
+fill(PHIGH4, PHIGH5, color=RISEFILL4)
+fill(PHIGH5, PHIGH6, color=RISEFILL5)
+fill(PHIGH6, PHIGH7, color=RISEFILL6)
+fill(PHIGH7, PHIGH8, color=RISEFILL7)
+fill(PHIGH8, PHIGH9, color=RISEFILL8)
+fill(PHIGH9, PHIGHX, color=RISEFILL9)
+
+
+
+//****************************** ENTRIES *****************************
+if KICKLOW and TIME_ALLOW
+    strategy.order(" ", strategy.long, qty=FALLSIZE[1]/close)
+
+if KICKHIGH and TIME_ALLOW
+    strategy.order(" ", strategy.short, qty=RISESIZE[1]/close)
